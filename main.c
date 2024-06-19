@@ -28,6 +28,90 @@ struct commands
 };
 typedef struct commands COMMAND;
 
+#define MAXINPUTLEN 250
+typedef struct inputbox{
+    char type; // i : int, d : double, s : string, r : radio, q : confirm button
+    int rgroup;
+    int ridx;
+    int y;
+    int x;
+    int width;
+    int height;
+    struct inputbox * above_input;
+    struct inputbox * below_input;
+    struct inputbox * left_input;
+    struct inputbox * right_input;
+    char input_str[MAXINPUTLEN];
+} InputBox;
+
+int input_to_int(InputBox * target){
+    return atoi(target->input_str);
+}
+
+double input_to_double(InputBox * target){
+    char * ptr;
+    return strtod(target->input_str,&ptr);
+}
+
+void edit_input(InputBox * target){
+    color_set(6,NULL);
+    mvgetnstr(target->y,target->x,target->input_str,target->width);
+}
+
+void draw_general_str(InputBox * target,short c){
+    color_set(c,NULL);
+    mvaddnstr(target->y,target->x,target->input_str,target->width);
+}
+
+void draw_general_bg(InputBox * target,short c){
+    color_set(c,NULL);
+    chtype ch = ' ';
+    mvaddch(target->y,target->x,ch);
+    int i;
+    for(i=1;i<(target->width);i++){
+        addch(ch);
+    }
+}
+
+void draw_input_bg(InputBox * target){
+    draw_general_bg(target,4);
+}
+
+void draw_cur_input_bg(InputBox * target){
+    draw_general_bg(target,5);
+}
+
+void draw_edit_input_bg(InputBox * target){
+    draw_general_bg(target,6);
+}
+
+void draw_input_str(InputBox * target){
+    draw_general_str(target,4);
+}
+
+void draw_cur_input_str(InputBox * target){
+    draw_general_str(target,5);
+}
+
+void draw_input(InputBox * target){
+    draw_input_bg(target);
+    draw_input_str(target);
+}
+
+void draw_cur_input(InputBox * target){
+    draw_cur_input_bg(target);
+    draw_cur_input_str(target);
+}
+
+void h_connect_input(InputBox * left, InputBox * right){
+    left->right_input = right;
+    right->left_input = left;
+}
+
+void v_connect_input(InputBox * above, InputBox * below){
+    above->below_input = below;
+    below->above_input = above;
+}
 
 #define _USE_MATH_DEFINES
 #include <math.h>
@@ -118,10 +202,107 @@ void n_body_sim(WINDOW *win){
 	double t=0;
 	double delta_t=1;
 
-    mvprintw(1,30,"G = %.16f\n",G);
-
 	mvprintw(2,30,"num_celest: ");
-	refresh();
+
+	InputBox num_celest_input = {'i',0,0,2,45,7,1,NULL,NULL,NULL,NULL,""};
+	/*
+	InputBox num_celest_input = {'i',0,0,3,30,7,1,NULL,NULL,NULL,NULL,""};
+	InputBox right_test_input = {'i',0,0,3,40,7,1,NULL,NULL,NULL,NULL,""};
+	InputBox below_test_input = {'i',0,0,4,30,7,1,NULL,NULL,NULL,NULL,""};
+	InputBox below_right_test_input = {'i',0,0,4,40,7,1,NULL,NULL,NULL,NULL,""};
+	InputBox confirm_test_input = {'q',0,0,5,30,20,1,NULL,NULL,NULL,NULL,"confirm"};
+	h_connect_input(&num_celest_input,&right_test_input);
+	h_connect_input(&below_test_input,&below_right_test_input);
+	v_connect_input(&num_celest_input,&below_test_input);
+	v_connect_input(&right_test_input,&below_right_test_input);
+
+	v_connect_input(&below_test_input,&confirm_test_input);
+	v_connect_input(&below_right_test_input,&confirm_test_input);
+
+	InputBox * cur_input = &num_celest_input;
+    bool not_confirmed = 1;
+    int key;
+    while(not_confirmed)
+    {
+        draw_input(&num_celest_input);
+        draw_input(&right_test_input);
+        draw_input(&below_test_input);
+        draw_input(&below_right_test_input);
+        draw_input(&confirm_test_input);
+        draw_input(&confirm_test_input);
+        draw_cur_input(cur_input);
+
+        noecho();
+        keypad(stdscr, TRUE);
+        raw();
+        key = getch();
+        switch(key){
+            case KEY_UP:
+                if(cur_input->above_input!=NULL)
+                    cur_input = cur_input->above_input;
+                break;
+            case KEY_DOWN:
+                if(cur_input->below_input!=NULL)
+                    cur_input = cur_input->below_input;
+                break;
+            case KEY_LEFT:
+                if(cur_input->left_input!=NULL)
+                    cur_input = cur_input->left_input;
+                break;
+            case KEY_RIGHT:
+                if(cur_input->right_input!=NULL)
+                    cur_input = cur_input->right_input;
+                break;
+
+            case 10:
+            case 13:
+            case KEY_ENTER:
+                switch(cur_input->type){
+                    case 'i':
+                        draw_edit_input_bg(cur_input);
+                        echo();
+                        edit_input(cur_input);
+                        flushinp();
+                        noecho();
+                        //draw_input(cur_input);
+                        break;
+                    case 'r':
+                        //selected_radio[(cur_input->rgroup)-1] = cur_input->ridx;
+                    case 'q':
+                        not_confirmed=0;
+                        break;
+                }
+            default:
+                switch(cur_input->type){
+                    case 'i':
+                    case 'd':
+                    case 's':
+                        break;
+                }
+        }
+        */
+    InputBox * cur_input = &num_celest_input;
+    draw_edit_input_bg(cur_input);
+    echo();
+    edit_input(cur_input);
+    flushinp();
+    noecho();
+    num_celest = input_to_int(cur_input);
+    erase();
+    color_set(0,NULL);
+    mvprintw(2,30,"num_celest: %d",num_celest);
+    //napms(2000);
+
+    Celestial celest[num_celest];
+    InputBox mass_inputs[num_celest];
+    InputBox init_pos_inputs[num_celest][3];
+    InputBox init_vel_inputs[num_celest][3];
+    InputBox max_t_input;
+    InputBox delta_t_input;
+    InputBox file_name_input;
+
+}
+
 	/*
 	scanw("%d",&num_celest);
 
@@ -232,8 +413,8 @@ void n_body_sim(WINDOW *win){
 		}
 
 	}
-	*/
 }
+*/
 void cr3bp_sim(WINDOW *win){
 
 }
@@ -422,9 +603,13 @@ int main(int argc, char *argv[])
     //mvprintw(31, 30,"num_of_boies: %d, time_len: %d",num_of_bodies,time_len);
 
     //start_color was already called by initTest function
+    init_pair(0,COLOR_WHITE,COLOR_BLACK);
     init_pair(1,COLOR_BLUE,COLOR_BLACK);
     init_pair(2,COLOR_GREEN,COLOR_BLACK);
     init_pair(3,COLOR_YELLOW,COLOR_BLACK);
+    init_pair(4,COLOR_BLACK,COLOR_WHITE);
+    init_pair(5,COLOR_WHITE,COLOR_YELLOW);
+    init_pair(6,COLOR_WHITE,COLOR_BLUE);
 
     i=0;
     while(1)
@@ -432,7 +617,7 @@ int main(int argc, char *argv[])
         loading_screen(file);
         i++;
         if(i>=352){
-            napms(5000);
+            napms(3000);
             break;
         }
         timeout(0);
