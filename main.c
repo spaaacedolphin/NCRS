@@ -28,15 +28,14 @@ struct commands
 };
 typedef struct commands COMMAND;
 
-#define MAXINPUTLEN 250
+#define MAXINPUTLEN 50
 typedef struct inputbox{
-    char type; // i : int, d : double, s : string, r : radio, q : confirm button
+    char type; // i : int, d : double, s : string, r : radio, q : confirm button, p : previous page, n : next page
     int rgroup;
     int ridx;
     int y;
     int x;
     int width;
-    int height;
     struct inputbox * above_input;
     struct inputbox * below_input;
     struct inputbox * left_input;
@@ -44,13 +43,25 @@ typedef struct inputbox{
     char input_str[MAXINPUTLEN];
 } InputBox;
 
+InputBox make_input(char type,int y,int x,int width,char * init_str){
+    InputBox new_input = {type,0,0,y,x,width,NULL,NULL,NULL,NULL,""};
+    strcpy(new_input.input_str,init_str);
+    return new_input;
+}
+
+InputBox make_radio_input(int rgroup,int ridx,int y,int x,int width,char * option_str){
+    InputBox new_input = {'r',rgroup,ridx,y,x,width,NULL,NULL,NULL,NULL,""};
+    strcpy(new_input.input_str,option_str);
+    return new_input;
+}
+
 int input_to_int(InputBox * target){
     return atoi(target->input_str);
 }
 
 double input_to_double(InputBox * target){
-    char * ptr;
-    return strtod(target->input_str,&ptr);
+    char * unit;
+    return strtod(target->input_str,&unit);
 }
 
 void edit_input(InputBox * target){
@@ -93,6 +104,10 @@ void draw_cur_input_str(InputBox * target){
     draw_general_str(target,5);
 }
 
+void draw_edit_input_str(InputBox * target){
+    draw_general_str(target,6);
+}
+
 void draw_input(InputBox * target){
     draw_input_bg(target);
     draw_input_str(target);
@@ -101,6 +116,11 @@ void draw_input(InputBox * target){
 void draw_cur_input(InputBox * target){
     draw_cur_input_bg(target);
     draw_cur_input_str(target);
+}
+
+void draw_edit_input(InputBox * target){
+    draw_edit_input_bg(target);
+    draw_edit_input_str(target);
 }
 
 void h_connect_input(InputBox * left, InputBox * right){
@@ -124,11 +144,13 @@ typedef struct vector{
 	double z;
 } Vector;
 
+#define MAXNAMELEN 30
 typedef struct celestial{
 	double mass;
 	Vector pos;
 	Vector vel;
 	Vector acc;
+	char name[MAXNAMELEN];
 } Celestial;
 
 Vector makeVec(double x, double y, double z){
@@ -196,21 +218,21 @@ double circular_orbit_speed(double m1, double m2, double r){
 }
 
 void n_body_sim(WINDOW *win){
-    int i,j,k;
+    int i,j,k,key;
     int num_celest=0;
 	double max_t=0;
 	double t=0;
 	double delta_t=1;
 
-	mvprintw(2,30,"num_celest: ");
+	mvprintw(2,20,"num_celest: ");
 
-	InputBox num_celest_input = {'i',0,0,2,45,7,1,NULL,NULL,NULL,NULL,""};
+	InputBox num_celest_input = make_input('i',2,35,7,"");  //{'i',0,0,2,45,7,NULL,NULL,NULL,NULL,""};
 	/*
-	InputBox num_celest_input = {'i',0,0,3,30,7,1,NULL,NULL,NULL,NULL,""};
-	InputBox right_test_input = {'i',0,0,3,40,7,1,NULL,NULL,NULL,NULL,""};
-	InputBox below_test_input = {'i',0,0,4,30,7,1,NULL,NULL,NULL,NULL,""};
-	InputBox below_right_test_input = {'i',0,0,4,40,7,1,NULL,NULL,NULL,NULL,""};
-	InputBox confirm_test_input = {'q',0,0,5,30,20,1,NULL,NULL,NULL,NULL,"confirm"};
+	InputBox num_celest_input = {'i',0,0,3,30,7,NULL,NULL,NULL,NULL,""};
+	InputBox right_test_input = {'i',0,0,3,40,7,NULL,NULL,NULL,NULL,""};
+	InputBox below_test_input = {'i',0,0,4,30,7,NULL,NULL,NULL,NULL,""};
+	InputBox below_right_test_input = {'i',0,0,4,40,7,NULL,NULL,NULL,NULL,""};
+	InputBox confirm_test_input = {'q',0,0,5,30,20,NULL,NULL,NULL,NULL,"confirm"};
 	h_connect_input(&num_celest_input,&right_test_input);
 	h_connect_input(&below_test_input,&below_right_test_input);
 	v_connect_input(&num_celest_input,&below_test_input);
@@ -264,7 +286,6 @@ void n_body_sim(WINDOW *win){
                         edit_input(cur_input);
                         flushinp();
                         noecho();
-                        //draw_input(cur_input);
                         break;
                     case 'r':
                         //selected_radio[(cur_input->rgroup)-1] = cur_input->ridx;
@@ -290,16 +311,196 @@ void n_body_sim(WINDOW *win){
     num_celest = input_to_int(cur_input);
     erase();
     color_set(0,NULL);
-    mvprintw(2,30,"num_celest: %d",num_celest);
+    //mvprintw(2,30,"num_celest: %d",num_celest);
     //napms(2000);
 
-    Celestial celest[num_celest];
+    //define default unit inputs
+    InputBox mass_default_unit_inputs[4];
+    InputBox pos_default_unit_inputs[3];
+    InputBox vel_default_unit_inputs[2];
+
+    mvprintw(2,20,"[Mass default unit options]");
+    char * mass_unit_options[4] = {"Solar mass (S)","Jupiter mass (J)","Earth mass (E)","Lunar mass (L)"};
+    for(i=0;i<4;i++)
+        mass_default_unit_inputs[i]=make_radio_input(0,i,3,20+20*i,18,mass_unit_options[i]);
+
+    mvprintw(5,20,"[Position default unit options]");
+    char * pos_unit_options[3] = {"m","km","au"};
+    for(i=0;i<3;i++)
+        pos_default_unit_inputs[i]=make_radio_input(1,i,6,20+6*i,4,pos_unit_options[i]);
+
+    mvprintw(8,20,"[Velocity default unit options]");
+    char * vel_unit_options[2] = {"m/s","km/s"};
+    for(i=0;i<2;i++)
+        vel_default_unit_inputs[i]=make_radio_input(2,i,9,20+5*i,4,vel_unit_options[i]);
+
+    InputBox default_unit_confirm_btn = make_input('q',11,20,10,"Confirm");
+
+    //connect all the inputs
+    for(i=0;i<3;i++)
+        h_connect_input(&mass_default_unit_inputs[i],&mass_default_unit_inputs[i+1]);
+    for(i=0;i<2;i++)
+        h_connect_input(&pos_default_unit_inputs[i],&pos_default_unit_inputs[i+1]);
+    h_connect_input(&vel_default_unit_inputs[0],&vel_default_unit_inputs[1]);
+
+    for(i=0;i<3;i++)
+        v_connect_input(&mass_default_unit_inputs[i],&pos_default_unit_inputs[i]);
+    v_connect_input(&mass_default_unit_inputs[3],&pos_default_unit_inputs[2]);
+    for(i=0;i<2;i++)
+        v_connect_input(&pos_default_unit_inputs[i],&vel_default_unit_inputs[i]);
+    v_connect_input(&pos_default_unit_inputs[2],&vel_default_unit_inputs[1]);
+    for(i=0;i<2;i++)
+        v_connect_input(&vel_default_unit_inputs[i],&default_unit_confirm_btn);
+
+    //start default unit selection page
+    int selected_default_units[3] = {-1,-1,-1};
+    cur_input = &mass_default_unit_inputs[0];
+    bool repeat = 1;
+    while(repeat)
+    {
+        for(i=0;i<4;i++)
+            draw_input(&mass_default_unit_inputs[i]);
+
+        for(i=0;i<3;i++)
+            draw_input(&pos_default_unit_inputs[i]);
+
+        for(i=0;i<2;i++)
+            draw_input(&vel_default_unit_inputs[i]);
+
+        draw_input(&default_unit_confirm_btn);
+
+        draw_cur_input(cur_input);
+
+        if(selected_default_units[0]>=0)
+            draw_edit_input(&mass_default_unit_inputs[selected_default_units[0]]);
+        if(selected_default_units[1]>=0)
+            draw_edit_input(&pos_default_unit_inputs[selected_default_units[1]]);
+        if(selected_default_units[2]>=0)
+            draw_edit_input(&vel_default_unit_inputs[selected_default_units[2]]);
+
+        noecho();
+        keypad(stdscr, TRUE);
+        raw();
+        key = getch();
+        switch(key){
+            case KEY_UP:
+                if(cur_input->above_input!=NULL)
+                    cur_input = cur_input->above_input;
+                break;
+            case KEY_DOWN:
+                if(cur_input->below_input!=NULL)
+                    cur_input = cur_input->below_input;
+                break;
+            case KEY_LEFT:
+                if(cur_input->left_input!=NULL)
+                    cur_input = cur_input->left_input;
+                break;
+            case KEY_RIGHT:
+                if(cur_input->right_input!=NULL)
+                    cur_input = cur_input->right_input;
+                break;
+
+            case 10:
+            case 13:
+            case KEY_ENTER:
+                switch(cur_input->type){
+                    case 'r':
+                        selected_default_units[cur_input->rgroup] = cur_input->ridx;
+                        break;
+                    case 'q':
+                        repeat=0;
+                }
+            default:
+                break;
+        }
+    }
+
+    erase();
+    color_set(0,NULL);
+    mvprintw(3,30,"%d // %d / %d / %d",num_celest,selected_default_units[0],selected_default_units[1],selected_default_units[2]);
+    refresh();
+    napms(5000);
+
+    /*
+    InputBox name_inputs[num_celest];
     InputBox mass_inputs[num_celest];
     InputBox init_pos_inputs[num_celest][3];
     InputBox init_vel_inputs[num_celest][3];
+    InputBox next_button[num_celest];
+    InputBox prev_button[num_celest];
+
+    for(i=0;i<num_celest;i++){
+        //name_inputs[i]=
+    }
+
+    i=0;
+    while(i<num_celest)
+    {
+        draw_input(&name_inputs[i]);
+        draw_input(&mass_inputs[i]);
+        for(j=0;j<3;j++)
+            draw_input(&init_pos_inputs[i][j]);
+            draw_input(&init_vel_inputs[i][j]);
+        draw_input(prev_button[i]);
+        draw_input(next_button[i]);
+        draw_cur_input()
+
+        noecho();
+        keypad(stdscr, TRUE);
+        raw();
+        key = getch();
+        switch(key){
+            case KEY_UP:
+                if(cur_input->above_input!=NULL)
+                    cur_input = cur_input->above_input;
+                break;
+            case KEY_DOWN:
+                if(cur_input->below_input!=NULL)
+                    cur_input = cur_input->below_input;
+                break;
+            case KEY_LEFT:
+                if(cur_input->left_input!=NULL)
+                    cur_input = cur_input->left_input;
+                break;
+            case KEY_RIGHT:
+                if(cur_input->right_input!=NULL)
+                    cur_input = cur_input->right_input;
+                break;
+
+            case 10:
+            case 13:
+            case KEY_ENTER:
+                switch(cur_input->type){
+                    case 'i':
+                        draw_edit_input_bg(cur_input);
+                        echo();
+                        edit_input(cur_input);
+                        flushinp();
+                        noecho();
+                        break;
+                    case 'r':
+                        //selected_radio[(cur_input->rgroup)-1] = cur_input->ridx;
+                        break;
+                    case 'p':
+                        if(i)
+                            i--;
+                        else
+                            return;
+                        break;
+                    case 'n':
+                        i++;
+                        break;
+                }
+            default:
+                break;
+        }
+    }
+    Celestial celest[num_celest];
+
     InputBox max_t_input;
     InputBox delta_t_input;
     InputBox file_name_input;
+    */
 
 }
 
@@ -471,8 +672,8 @@ void loading_screen(FILE *f)
     short c;
     for(c=1;c<=3;c++){
         int x,y;
-        fread(&y,sizeof(int),1,f);
-        fread(&x,sizeof(int),1,f);
+        fread((void *)(&y),sizeof(int),1,f);
+        fread((void *)(&x),sizeof(int),1,f);
 
         int y_flip = 51-y+1;
         int y_line = ((y_flip-1)/2)+1;
@@ -595,8 +796,8 @@ int main(int argc, char *argv[])
     FILE *file = fopen("planar_3body_tui.dat", "rb");
     int num_of_bodies = 0;
     int time_len = 0;
-    fread(&num_of_bodies, sizeof(int), 1, file);
-    fread(&time_len,sizeof(int),1,file);
+    fread((void *)(&num_of_bodies), sizeof(int), 1, file);
+    fread((void *)(&time_len),sizeof(int),1,file);
     attrset(A_BOLD | A_REVERSE);
     mvprintw(1, 45,"N-body & CR3BP Simulation Program");
     attrset(A_NORMAL);
