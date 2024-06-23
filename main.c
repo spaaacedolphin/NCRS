@@ -21,6 +21,10 @@
 # include <wchar.h>
 #endif
 
+#define UNICODE_BBLOCK      0x2584
+#define UNICODE_UBLOCK      0x2580
+#define UNICODE_FBLOCK      0x2588
+
 struct commands
 {
     const char *text;
@@ -28,7 +32,7 @@ struct commands
 };
 typedef struct commands COMMAND;
 
-#define MAXINPUTLEN 50
+#define MAXINPUTLEN 51
 typedef struct inputbox{
     char input_str[MAXINPUTLEN];
     struct inputbox * above_input;
@@ -60,7 +64,7 @@ int input_to_int(InputBox * target){
     return atoi(target->input_str);
 }
 
-int selected_default_units[3] = {-1,-1,-1};
+signed char selected_default_units[3] = {-1,-1,-1};
 
 double input_to_double(InputBox * target,char type){
     char * unit;
@@ -192,6 +196,17 @@ void v_connect_input(InputBox * above, InputBox * below){
     below->above_input = above;
 }
 
+void update_progress_bar(double t,double max_t){
+    int progress = (int)((t/max_t)*100);
+    mvprintw(10,10,"%d%",progress);
+    int i;
+    for(i=0;i<(progress/5);i++)
+        mvaddch(10,15+i,(UNICODE_FBLOCK|COLOR_PAIR(2)));
+    for(;i<20;i++)
+        mvaddch(10,15+i,(UNICODE_FBLOCK|COLOR_PAIR(0)));
+    refresh();
+}
+
 #define _USE_MATH_DEFINES
 #include <math.h>
 
@@ -203,7 +218,7 @@ typedef struct vector{
 	double z;
 } Vector;
 
-#define MAXNAMELEN 30
+#define MAXNAMELEN 31
 typedef struct celestial{
     char name[MAXNAMELEN];
     Vector pos;
@@ -260,9 +275,9 @@ Vector rel_pos(Vector pos1,Vector pos2){	//position of pos2 relative to pos1
 	return vec_subtr(pos2,pos1);
 }
 
-Vector acc_gravity(Celestial c1, Celestial c2){	//c1's acceleration by gravity of c2
-	Vector r = rel_pos(c1.pos,c2.pos);
-	return scalar_multi( (G*c2.mass)/pow(vec_mag(r),2), unit_vec(r) );
+Vector acc_gravity(Celestial * c1, Celestial * c2){	//c1's acceleration by gravity of c2
+	Vector r = rel_pos(c1->pos,c2->pos);
+	return scalar_multi( (G*c2->mass)/pow(vec_mag(r),2), unit_vec(r) );
 }
 
 double kepler_law3_period(double m1, double m2, double a){
@@ -394,7 +409,7 @@ void n_body_sim(WINDOW *win){
                 switch(cur_input->type)
                 {
                     case 'r':
-                        selected_default_units[cur_input->rgroup] = cur_input->ridx;
+                        selected_default_units[cur_input->rgroup] = (signed char)(cur_input->ridx);
                         break;
                     case 'q':
                         repeat=0;
@@ -575,85 +590,119 @@ void n_body_sim(WINDOW *win){
     free(init_pos_inputs);
     free(init_vel_inputs);
 
+    erase();
+
+    color_set(0,NULL);
+    mvaddstr(2,10,"[max_t]");
+    InputBox max_t_input=make_input('d',3,10,30,"");
+    mvaddstr(5,10,"[delta_t]");
+    InputBox delta_t_input=make_input('d',6,10,30,"");
+    mvaddstr(8,10,"[file_name]");
+    InputBox file_name_input=make_input('s',9,10,50,"");
+    InputBox last_confirm_btn=make_input('q',11,10,10,"confirm");
+
+    v_connect_input(&max_t_input,&delta_t_input);
+    v_connect_input(&delta_t_input,&file_name_input);
+    v_connect_input(&file_name_input,&last_confirm_btn);
+
+    repeat=1;
+    cur_input = &max_t_input;
+    while(repeat)
+    {
+        draw_input(&max_t_input);
+        draw_input(&delta_t_input);
+        draw_input(&file_name_input);
+        draw_input(&last_confirm_btn);
+        draw_cur_input(cur_input);
+
+        noecho();
+        keypad(stdscr, TRUE);
+        raw();
+        key = getch();
+        switch(key)
+        {
+            case KEY_UP:
+                if(cur_input->above_input!=NULL)
+                    cur_input = cur_input->above_input;
+                break;
+            case KEY_DOWN:
+                if(cur_input->below_input!=NULL)
+                    cur_input = cur_input->below_input;
+                break;
+            case KEY_LEFT:
+                if(cur_input->left_input!=NULL)
+                    cur_input = cur_input->left_input;
+                break;
+            case KEY_RIGHT:
+                if(cur_input->right_input!=NULL)
+                    cur_input = cur_input->right_input;
+                break;
+
+            case 10:
+            case 13:
+            case KEY_ENTER:
+                switch(cur_input->type)
+                {
+                    case 's':
+                    case 'd':
+                        draw_edit_input_bg(cur_input);
+                        echo();
+                        edit_input(cur_input);
+                        flushinp();
+                        noecho();
+                        break;
+                    case 'q':
+                        repeat=0;
+                }
+            default:
+                break;
+        }
+    }
+    erase();
+
+    max_t = input_to_double(&max_t_input,' ');
+    delta_t = input_to_double(&delta_t_input,' ');
+
+    char filename[60]={0};
+    strcpy(filename,file_name_input.input_str);
+    strcat(filename,".ncrs");
+
+	FILE * fp = fopen(filename,"wb");
+
+	char simulation_type = 0;
+	fwrite((void*)(&simulation_type),sizeof(char),1,fp);
+	fwrite((void*)(&num_celest),sizeof(int),1,fp);
+	fwrite((void*)(&max_t),sizeof(double),1,fp);
+	fwrite((void*)(&delta_t),sizeof(double),1,fp);
+	fwrite((void*)(selected_default_units),sizeof(char),3,fp);
+
+	char different_unit_exist[3] = {0,0,0};
+	fwrite((void*)different_unit_exist,sizeof(char),3,fp);
+
+	for(i=0;i<num_celest;i++)
+        fwrite((void*)(celest[i].name),sizeof(char),strlen(celest[i].name)+1,fp);
+
+    for(i=0;i<num_celest;i++)
+        fwrite((void*)(&(celest[i].mass)),sizeof(double),1,fp);
 
     /*
-    InputBox max_t_input;
-    InputBox delta_t_input;
-    InputBox file_name_input;
+    if(sizeof(Vector) == (sizeof(double)*3))
+        mvaddstr(10,10,"good");
+    else
+        mvaddstr(10,10,"not good");
+    refresh();
+    napms(3000);
+    erase();
     */
-
-}
-
-	/*
-	scanw("%d",&num_celest);
-
-	Celestial celest[num_celest];
-	for(i=0;i<num_celest;i++){
-
-		mvprintw(3+i,30,"celest[%d]:\n",i);
-
-		mvprintw(3+i+1,30,"\tmass: ");
-		refresh();
-		scanw("%lf", &celest[i].mass);
-
-		mvprintw(3+i+2,30,"\tposition (x,y,z): ");
-		refresh();
-		scanw("%lf %lf %lf", &celest[i].pos.x, &celest[i].pos.y, &celest[i].pos.z);
-
-		mvprintw(3+i+3,30,"\tvelocity (x,y,z): ");
-		refresh();
-		scanw("%lf %lf %lf", &celest[i].vel.x, &celest[i].vel.y, &celest[i].vel.z);
-
-	}
-
-	erase();
-
-	for(i=0;i<num_celest;i++){
-
-		mvprintw(i+1,30,"celest[%d]:\n",i);
-
-		mvprintw(i+2,30,"\tmass: ");
-		mvprintw(i+2,30,"%lf\n", celest[i].mass);
-
-		mvprintw(i+3,30,"\tposition (x,y,z): ");
-		mvprintw(i+3,30,"%lf %lf %lf\n", celest[i].pos.x, celest[i].pos.y, celest[i].pos.z);
-
-		mvprintw(i+4,30,"\tvelocity (x,y,z): ");
-		mvprintw(i+4,30,"%lf %lf %lf\n", celest[i].vel.x, celest[i].vel.y, celest[i].vel.z);
-
-	}
-
-	getch();
-	erase();
-
-	mvprintw(1,30,"max_t: ");
-	refresh();
-	scanw("%lf",&max_t);
-
-	mvprintw(2,30,"delta_t: ");
-	refresh();
-	scanw("%lf",&delta_t);
-
-	char file_name[50]={0};
-	mvprintw(3,30,"file_name: ");
-	refresh();
-	scanw("%s",file_name);
-
-	FILE * fp = fopen(file_name,"wt");
-
-	for(i=0;i<num_celest;i++){
-		fprintf(fp,"%f\t",celest[i].mass);
-	}
-	fprintf(fp,"\n");
-
-	for(i=0;i<num_celest;i++){
-		fprintf(fp,"%f\t%f\t%f\n", celest[i].vel.x, celest[i].vel.y, celest[i].vel.z);
-	}
-	fprintf(fp,"\n");
-
+    for(i=0;i<num_celest;i++){
+        fwrite((void*)(&(celest[i].vel)),sizeof(Vector),1,fp);
+    }
 	double half_delta_t = delta_t/2;
 
 	for(t=0; t<=max_t; t+=delta_t){
+
+        update_progress_bar(t,max_t);
+
 		for(i=0; i<num_celest; i++){
 
 			celest[i].acc.x=0;
@@ -663,10 +712,10 @@ void n_body_sim(WINDOW *win){
 			for(j=0;j<num_celest;j++){
 				if(j==i)
 					continue;
-				celest[i].acc = vec_add( celest[i].acc, acc_gravity(celest[i],celest[j]) );	//calculate the sum of forces
+				celest[i].acc = vec_add( celest[i].acc, acc_gravity(celest+i,celest+j) );	//calculate the sum of forces
 			}
 
-			fprintf(fp,"%f\t%d\t%f\t%f\t%f\n",t,i,celest[i].pos.x,celest[i].pos.y,celest[i].pos.z);	//print result
+			fwrite((void*)(&(celest[i].pos)),sizeof(Vector),1,fp);	//print result
 
 			celest[i].vel = vec_add( celest[i].vel, scalar_multi( half_delta_t, celest[i].acc ) );	//v=v0+adt
 
@@ -686,7 +735,7 @@ void n_body_sim(WINDOW *win){
 			for(j=0;j<num_celest;j++){
 				if(j==i)
 					continue;
-				celest[i].acc = vec_add( celest[i].acc, acc_gravity(celest[i],celest[j]) );	//calculate the sum of forces
+				celest[i].acc = vec_add( celest[i].acc, acc_gravity(celest+i,celest+j) );	//calculate the sum of forces
 			}
 
 			celest[i].vel = vec_add( celest[i].vel, scalar_multi( half_delta_t, celest[i].acc ) );	//v=v0+adt
@@ -694,8 +743,17 @@ void n_body_sim(WINDOW *win){
 		}
 
 	}
+
+    for(i=0;i<num_celest;i++){
+        fwrite((void*)(&(celest[i].vel)),sizeof(Vector),1,fp);
+    }
+	fclose(fp);
+	free(celest);
+	mvaddstr(12,10,"Complete!");
+	refresh();
+	napms(2000);
 }
-*/
+
 void cr3bp_sim(WINDOW *win){
 
 }
@@ -738,10 +796,6 @@ int initTest(WINDOW **win, int argc, char *argv[])
 
     return 0;
 }
-
-#define UNICODE_BBLOCK      0x2584
-#define UNICODE_UBLOCK      0x2580
-#define UNICODE_FBLOCK      0x2588
 
 void loading_screen(FILE *f)
 {
