@@ -64,14 +64,89 @@ int input_to_int(InputBox * target){
     return atoi(target->input_str);
 }
 
+char * mass_unit_options[5] = {"kg","Solar mass (MS)","Jupiter mass (MJ)","Earth mass (ME)","Lunar mass (ML)"};
+char * pos_unit_options[3] = {"m","km","au"};
+char * vel_unit_options[2] = {"m/s","km/s"};
+
 signed char selected_default_units[3] = {-1,-1,-1};
 
 double input_to_double(InputBox * target,char type){
-    char * unit;
-    double result = strtod(target->input_str,&unit);
+    char * unit_p;
+    double result = strtod(target->input_str,&unit_p);
+
+    if(unit_p[0]>='A' && unit_p[0]<='z'){   //handle non-default units
+
+        char unit[10] = {0};
+        strncpy(unit,unit_p,9);
+        int i;
+        for(i=0;i<10;i++){  //make unit string lowercase
+
+            if(unit[i]=='\0')
+                break;
+
+            unit[i] = tolower(unit[i]);
+        }
+
+        switch(type){
+            case 'M':
+                if(!strcmp(unit,"kg")){
+                    return result;
+                }
+                else if(!strcmp(unit,"ms")){
+                    result *= 1.98847e+30;
+                    return result;
+                }
+                else if(!strcmp(unit,"mj")){
+                    result *= 1.89813e+27;
+                    return result;
+                }
+                else if(!strcmp(unit,"me")){
+                    result *= 5.9722e+24;
+                    return result;
+                }
+                else if(!strcmp(unit,"ml")){
+                    result *= 7.342e+22;
+                    return result;
+                }
+                else{
+                    return result;
+                }
+                break;
+            case 'p':
+                if(!strcmp(unit,"m")){
+                    return result;
+                }
+                else if(!strcmp(unit,"km")){
+                    result *= 1000;
+                    return result;
+                }
+                else if(!strcmp(unit,"au")){
+                    result *= 149597870700;
+                    return result;
+                }
+                else{
+                    return result;
+                }
+                break;
+            case 'v':
+                if(!strcmp(unit,"m/s")){
+                    return result;
+                }
+                else if(!strcmp(unit,"km/s")){
+                    result *= 1000;
+                    return result;
+                }
+                else{
+                    return result;
+                }
+                break;
+
+        }
+    }
+
     switch(type)
     {
-        case 'm':
+        case 'M':
             switch(selected_default_units[0])
             {
                 case 0: //kg
@@ -114,6 +189,21 @@ double input_to_double(InputBox * target,char type){
                     break;
             }
             break;
+        case 's':
+            break;
+        case 'm':
+            result *= 60;
+            break;
+        case 'h':
+            result *= 3600;
+            break;
+        case 'd':
+            result *= 86400;
+            break;
+        case 'y':
+            result *= 31557600; //Julian year - IAU standard
+            break;
+
     }
     return result;
 }
@@ -198,7 +288,7 @@ void v_connect_input(InputBox * above, InputBox * below){
 
 void update_progress_bar(double t,double max_t){
     int progress = (int)((t/max_t)*100);
-    mvprintw(10,10,"%d%",progress);
+    mvprintw(10,10,"%d%%",progress);
     int i;
     for(i=0;i<(progress/5);i++)
         mvaddch(10,15+i,(UNICODE_FBLOCK|COLOR_PAIR(2)));
@@ -294,9 +384,6 @@ double circular_orbit_speed(double m1, double m2, double r){
 void n_body_sim(WINDOW *win){
     int i,j,k,key;
     int num_celest=0;
-	double max_t=0;
-	double t=0;
-	double delta_t=1;
 
 	mvprintw(2,10,"[Number of Celestial bodies]");
 
@@ -320,17 +407,17 @@ void n_body_sim(WINDOW *win){
 
     //define default unit inputs
     mvprintw(2,10,"[Mass default unit options]");
-    char * mass_unit_options[5] = {"kg","Solar mass (S)","Jupiter mass (J)","Earth mass (E)","Lunar mass (L)"};
+
     for(i=0;i<5;i++)
         mass_default_unit_inputs[i]=make_radio_input(0,i,3,10+20*i,18,mass_unit_options[i]);
 
     mvprintw(5,10,"[Position default unit options]");
-    char * pos_unit_options[3] = {"m","km","au"};
+
     for(i=0;i<3;i++)
         pos_default_unit_inputs[i]=make_radio_input(1,i,6,10+6*i,4,pos_unit_options[i]);
 
     mvprintw(8,10,"[Velocity default unit options]");
-    char * vel_unit_options[2] = {"m/s","km/s"};
+
     for(i=0;i<2;i++)
         vel_default_unit_inputs[i]=make_radio_input(2,i,9,10+6*i,4,vel_unit_options[i]);
 
@@ -578,7 +665,7 @@ void n_body_sim(WINDOW *win){
                                 input_to_double(&init_vel_inputs[i][2],'v'));
 
         celest[i].acc = makeVec(0,0,0);
-        celest[i].mass = input_to_double(mass_inputs+i,'m');
+        celest[i].mass = input_to_double(mass_inputs+i,'M');
     }
 
     free(name_inputs);  free(mass_inputs);
@@ -594,26 +681,96 @@ void n_body_sim(WINDOW *win){
 
     color_set(0,NULL);
     mvaddstr(2,10,"[max_t]");
-    InputBox max_t_input=make_input('d',3,10,30,"");
-    mvaddstr(5,10,"[delta_t]");
-    InputBox delta_t_input=make_input('d',6,10,30,"");
-    mvaddstr(8,10,"[file_name]");
-    InputBox file_name_input=make_input('s',9,10,50,"");
-    InputBox last_confirm_btn=make_input('q',11,10,10,"confirm");
+    InputBox max_t_inputs[5];
+    max_t_inputs[0] = make_input('d',3,10,7,"");
+    max_t_inputs[1] = make_input('d',3,24,4,"");
+    max_t_inputs[2] = make_input('d',5,10,3,"");
+    max_t_inputs[3] = make_input('d',5,20,3,"");
+    max_t_inputs[4] = make_input('d',5,32,3,"");
 
-    v_connect_input(&max_t_input,&delta_t_input);
+
+
+    mvaddstr(7,10,"[delta_t]");
+    InputBox delta_t_input=make_input('d',8,10,15,"");
+
+    mvaddstr(10,10,"[file_name]");
+    InputBox file_name_input=make_input('s',11,10,50,"");
+    InputBox last_confirm_btn=make_input('q',13,10,10,"Confirm");
+
+    for(i=0;i<4;i++){
+        if(i==1)
+            continue;
+        h_connect_input(max_t_inputs+i,max_t_inputs+i+1);
+    }
+    for(i=0;i<2;i++){
+        v_connect_input(max_t_inputs+i,max_t_inputs+i+2);
+    }
+    max_t_inputs[4].above_input = max_t_inputs+1;
+
+    for(i=2;i<5;i++){
+        max_t_inputs[i].below_input = &delta_t_input;
+    }
+    delta_t_input.above_input = max_t_inputs+2;
+
+
     v_connect_input(&delta_t_input,&file_name_input);
     v_connect_input(&file_name_input,&last_confirm_btn);
 
     repeat=1;
-    cur_input = &max_t_input;
+    cur_input = max_t_inputs;
+    double temp_max_t,temp_delta_t;
+    char time_unit_types[5] = {'y','d','h','m','s'};
+    char * file_size_units[4] = {"bytes","kB","MB","GB"};
+    #define KILO 1000
+    #define MEGA 1000000
+    #define GIGA 1000000000
     while(repeat)
     {
-        draw_input(&max_t_input);
+        temp_max_t = 0;
+        for(i=0;i<5;i++){
+            draw_input(max_t_inputs+i);
+            temp_max_t += input_to_double(max_t_inputs+i,time_unit_types[i]);
+        }
         draw_input(&delta_t_input);
         draw_input(&file_name_input);
         draw_input(&last_confirm_btn);
         draw_cur_input(cur_input);
+
+        temp_delta_t = input_to_double(&delta_t_input,'s');
+
+        color_set(0,NULL);
+        mvaddstr(3,18,"years");
+        mvaddstr(3,29,"days");
+        mvaddstr(5,14,"hours");
+        mvaddstr(5,24,"minutes");
+        mvaddstr(5,36,"seconds");
+        mvaddstr(8,26,"seconds");
+
+        if(temp_delta_t && temp_max_t){
+
+            double efs = sizeof(double)*num_celest*(1 + 3*( (int)(temp_max_t/temp_delta_t) + 2 ) );
+
+            int size_unit;
+            if( ((int)efs)/MEGA ){
+                if( ((int)efs)/GIGA ){
+                    size_unit = 3;
+                    efs /= GIGA;
+                }
+                else{
+                    size_unit = 2;
+                    efs /= MEGA;
+                }
+            }
+            else if( ((int)efs)/KILO){
+                size_unit = 1;
+                efs /= KILO;
+            }
+            else{
+                size_unit = 0;
+            }
+            mvaddstr(12,10,"                                                ");
+            mvprintw(12,10,"Estimated file size: %0.2f%s",efs,file_size_units[size_unit]);
+        }
 
         noecho();
         keypad(stdscr, TRUE);
@@ -660,8 +817,14 @@ void n_body_sim(WINDOW *win){
     }
     erase();
 
-    max_t = input_to_double(&max_t_input,' ');
-    delta_t = input_to_double(&delta_t_input,' ');
+    double max_t=0;
+	double t=0;
+	double delta_t=1;
+
+    for(i=0;i<5;i++)
+        max_t += input_to_double(max_t_inputs+i,time_unit_types[i]);
+
+    delta_t = input_to_double(&delta_t_input,'s');
 
     char filename[60]={0};
     strcpy(filename,file_name_input.input_str);
@@ -675,9 +838,6 @@ void n_body_sim(WINDOW *win){
 	fwrite((void*)(&max_t),sizeof(double),1,fp);
 	fwrite((void*)(&delta_t),sizeof(double),1,fp);
 	fwrite((void*)(selected_default_units),sizeof(char),3,fp);
-
-	char different_unit_exist[3] = {0,0,0};
-	fwrite((void*)different_unit_exist,sizeof(char),3,fp);
 
 	for(i=0;i<num_celest;i++)
         fwrite((void*)(celest[i].name),sizeof(char),strlen(celest[i].name)+1,fp);
@@ -694,6 +854,7 @@ void n_body_sim(WINDOW *win){
     napms(3000);
     erase();
     */
+
     for(i=0;i<num_celest;i++){
         fwrite((void*)(&(celest[i].vel)),sizeof(Vector),1,fp);
     }
@@ -750,8 +911,26 @@ void n_body_sim(WINDOW *win){
 	fclose(fp);
 	free(celest);
 	mvaddstr(12,10,"Complete!");
+	mvaddstr(14,10,"Press ENTER to go back to menu...");
 	refresh();
-	napms(2000);
+	repeat=1;
+	while(repeat)
+    {
+        noecho();
+        keypad(stdscr, TRUE);
+        raw();
+        key = getch();
+        switch(key)
+        {
+            case 10:
+            case 13:
+            case KEY_ENTER:
+                repeat=0;
+                break;
+            default:
+                break;
+        }
+    }
 }
 
 void cr3bp_sim(WINDOW *win){
