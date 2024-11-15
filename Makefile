@@ -1,4 +1,4 @@
-LIBS = $$(ncursesw5-config --cflags --libs) -ldrm -lm
+LIBS = $$(ncursesw5-config --cflags --libs) -lm
 
 ncrs : main.o inputbox.o
 	gcc -o ncrs main.o inputbox.o $(LIBS)
