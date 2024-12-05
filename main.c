@@ -28,12 +28,11 @@ const char * file_size_units[4] = {"bytes","kB","MB","GB"};
 #define MEGA 1000000
 #define GIGA 1000000000
 
-struct commands
+typedef struct commands
 {
   const char *text;
   void (*function)(WINDOW *);
-};
-typedef struct commands COMMAND;
+} COMMAND;
 
 int wch_cmpn(const wchar_t * wch1, const wchar_t * wch2, int n){
   int i;
@@ -142,16 +141,29 @@ double circular_orbit_speed(double m1, double m2, double r){
   return pow(mu/r,0.5);
 }
 
-void n_body_sim(WINDOW *win){
-  int i,j,k,key;
+typedef struct celestial_list{
+  Celestial * celest_pointer;
+  int number;
+} Celestial_list;
+
+typedef struct simulation_settings{
+  char filename[60];
+  double max_t;
+  double delta_t;
+} Simulation_settings;
+
+bool repeat;
+int i,j,k,key;
+InputBox * cur_input;
+
+Celestial_list manual_n_body_set(){
   int num_celest=0;
-    
   mvprintw(2,10,"[Number of Celestial bodies]");
 
   InputBox num_celest_input = make_input('i',3,10,6,"");
-  InputBox * cur_input = &num_celest_input;
+  cur_input = &num_celest_input;
     
-  bool repeat = 1;
+  repeat = 1;
   while(repeat){
     draw_cur_input(cur_input);
         
@@ -414,8 +426,6 @@ void n_body_sim(WINDOW *win){
 		i--;
 		cur_input = name_inputs + i;
 	      }
-	      else
-		return;
 	      break;
 	    case 'n':
 	      i++;
@@ -457,6 +467,11 @@ void n_body_sim(WINDOW *win){
 
   erase();
 
+  Celestial_list celest_list = {celest,num_celest};
+  return celest_list;
+}
+
+Simulation_settings simulation_set(int num_celest){
   color_set(0,NULL);
   mvaddstr(2,10,"[max_t]");
   InputBox max_t_inputs[5];
@@ -589,7 +604,6 @@ void n_body_sim(WINDOW *win){
   erase();
 
   double max_t=0;
-  double t=0;
   double delta_t=1;
 
   for(i=0;i<5;i++)
@@ -597,11 +611,26 @@ void n_body_sim(WINDOW *win){
 
   delta_t = input_to_double(&delta_t_input,'s');
 
-  char filename[60]={0};
-  strcpy(filename,file_name_input.input_str);
-  strcat(filename,".ncrs");
+  Simulation_settings sim_settings={"",max_t,delta_t}; 
+  strcpy(sim_settings.filename,file_name_input.input_str);
+  strcat(sim_settings.filename,".ncrs");
+  return sim_settings;
+}
 
-  FILE * fp = fopen(filename,"wb");
+void n_body_sim(WINDOW *win){
+  int i,j,k;
+    
+  Celestial_list celest_list =  manual_n_body_set();
+  Celestial * celest = celest_list.celest_pointer;
+  int num_celest = celest_list.number;
+  
+  Simulation_settings sim_settings = simulation_set(num_celest);
+
+  double t = 0;
+  double max_t = sim_settings.max_t;
+  double delta_t = sim_settings.delta_t;
+
+  FILE * fp = fopen(sim_settings.filename,"wb");
 
   char simulation_type = 0;
   fwrite((void*)(&simulation_type),sizeof(char),1,fp);
@@ -688,7 +717,7 @@ void n_body_sim(WINDOW *win){
   mvaddstr(12,10,"Complete!");
   mvaddstr(14,10,"Press ENTER to go back to menu...");
   refresh();
-  repeat=1;
+  bool repeat=1;
   while(repeat)
     {
       noecho();
