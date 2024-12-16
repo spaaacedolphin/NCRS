@@ -152,18 +152,31 @@ typedef struct simulation_settings{
   double delta_t;
 } Simulation_settings;
 
-bool repeat;
-int i,j,k,key;
-InputBox * cur_input;
+typedef struct cr_binary_system{
+  Celestial primary;
+  Celestial secondary;
+  Vector L1;
+  Vector L2;
+  Vector L3;
+  Vector L4;
+  Vector L5;
+  double angular_speed;
+} cr_Binary_system;
 
+typedef struct cr_system{
+  cr_Binary_system binary_sys;
+  Celestial_list inf_body;
+} cr_System;
+  
 Celestial_list manual_n_body_set(){
+  int i,j,key;
   int num_celest=0;
   mvprintw(2,10,"[Number of Celestial bodies]");
 
   InputBox num_celest_input = make_input('i',3,10,6,"");
-  cur_input = &num_celest_input;
+  InputBox * cur_input = &num_celest_input;
     
-  repeat = 1;
+  bool repeat = 1;
   while(repeat){
     draw_cur_input(cur_input);
         
@@ -472,6 +485,7 @@ Celestial_list manual_n_body_set(){
 }
 
 Simulation_settings simulation_set(int num_celest){
+  int i,key;
   color_set(0,NULL);
   mvaddstr(2,10,"[max_t]");
   InputBox max_t_inputs[5];
@@ -509,8 +523,8 @@ Simulation_settings simulation_set(int num_celest){
   v_connect_input(&delta_t_input,&file_name_input);
   v_connect_input(&file_name_input,&last_confirm_btn);
 
-  repeat=1;
-  cur_input = max_t_inputs;
+  bool repeat=1;
+  InputBox * cur_input = max_t_inputs;
   double temp_max_t,temp_delta_t;
   while(repeat)
     {
@@ -618,7 +632,7 @@ Simulation_settings simulation_set(int num_celest){
 }
 
 void n_body_sim(WINDOW *win){
-  int i,j,k;
+  int i,j,k,key;
     
   Celestial_list celest_list =  manual_n_body_set();
   Celestial * celest = celest_list.celest_pointer;
@@ -738,7 +752,15 @@ void n_body_sim(WINDOW *win){
     
   return;
 }
+/*
+cr_System manual_cr3bp_set(){
+  
+}
 
+cr_System JPL_cr3bp_set(){
+
+}
+*/
 void cr3bp_sim(WINDOW *win){
   int i,j,k,key;
   int num_celest=0;
@@ -782,11 +804,12 @@ void cr3bp_sim(WINDOW *win){
     }
   }
 
+  cr_System sys;
   switch(set_mode){
   case 0:
-
+    //sys = manual_cr3bp_set();
   case 1:
-    
+    //sys = JPL_cr3bp_set();
   }
   
   return;
