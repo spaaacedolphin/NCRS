@@ -1,16 +1,16 @@
 #define MAXINPUTLEN 51
 typedef struct inputbox{
-    char input_str[MAXINPUTLEN];
-    struct inputbox * above_input;
-    struct inputbox * below_input;
-    struct inputbox * left_input;
-    struct inputbox * right_input;
-    int rgroup;
-    int ridx;
-    int y;
-    int x;
-    int width;
-    char type; // i : int, d : double, s : string, r : radio, q : confirm button, p : previous page, n : next page
+	char input_str[MAXINPUTLEN];
+	struct inputbox * above_input;
+	struct inputbox * below_input;
+	struct inputbox * left_input;
+	struct inputbox * right_input;
+	int rgroup;
+	int ridx;
+	int y;
+	int x;
+	int width;
+	char type; // i : int, d : double, s : string, r : radio, q : confirm button, p : previous page, n : next page
 
 } InputBox;
 
