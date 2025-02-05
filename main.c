@@ -796,11 +796,12 @@ void n_body_sim(WINDOW *win){
 	return;
 }
 
+/*
 cr_System manual_cr3bp_set(){
 	
 }
 
-/*
+
 cr_System JPL_cr3bp_set(){
 
 }
@@ -861,7 +862,7 @@ void cr3bp_sim(WINDOW *win){
 	switch(set_mode)
 	{
 		case 0:
-			sys = manual_cr3bp_set();
+			//sys = manual_cr3bp_set();
 		case 1:
 			//sys = JPL_cr3bp_set();
 	}
