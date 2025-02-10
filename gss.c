@@ -2,8 +2,8 @@
 
 static const double r = (sqrt(5)-1)/2;
 
-double golden_section_search_max(double (*f)(double), double a, double b, double Delta_X){
-	double t = (log(Delta_X/(b-a))/log(r)) + 1;
+double golden_section_search_max(double (*f)(double), double a, double b, double DeltaX){
+	double t = (log(DeltaX/(b-a))/log(r)) + 1;
 	int n = ceil(t);
 	
 	int i;
@@ -26,8 +26,8 @@ double golden_section_search_max(double (*f)(double), double a, double b, double
 	return (a+b)/2;
 }
 
-double golden_section_search_min(double (*f)(double), double a, double b, double Delta_X){
-	double t = (log(Delta_X/(b-a))/log(r)) + 1;
+double golden_section_search_min(double (*f)(double), double a, double b, double DeltaX){
+	double t = (log(DeltaX/(b-a))/log(r)) + 1;
 	int n = ceil(t);
 	
 	int i;
