@@ -1,12 +1,15 @@
+CC = gcc
+CFLAGS = -Wall -O3
 LIBS = $$(ncursesw5-config --cflags --libs) -lm
+objects = main.o inputbox.o celestial.o
 
-ncrs : main.o inputbox.o
-	gcc -Wall -O3 -o ncrs main.o inputbox.o $(LIBS)
+all: ncrs
 
-inputbox.o : inputbox_ncrs.c
-	gcc -Wall -O3 -c -o inputbox.o inputbox_ncrs.c
-main.o : main.c
-	gcc -Wall -O3 -c -o main.o main.c
-	
+%.o : %.c
+	$(CC) $(CFLAGS) -c $^
+
+ncrs : $(objects)
+	$(CC) $(CFLAGS) -o $@ $(objects) $(LIBS)
+
 clean:
 	rm *.o ncrs

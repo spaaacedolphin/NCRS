@@ -7,11 +7,15 @@
 #include <locale.h>
 #include <curses.h>
 #include "inputbox.h"
+#include "celestial.h"
 
 extern char * mass_unit_options[5];
 extern char * pos_unit_options[3];
 extern char * vel_unit_options[2];
 extern signed char selected_default_units[3];
+
+extern const Celestial_list EXIT_CL;
+extern const Simulation_settings EXIT_SS;
 
 #define UNICODE_BBLOCK  L"\u2584"
 #define UNICODE_UBLOCK  L"\u2580"
@@ -24,6 +28,7 @@ const int BLOCK_LEN = sizeof(FBLOCK)/sizeof(wchar_t);
 
 const char time_unit_types[5] = {'y','d','h','m','s'};
 const char * file_size_units[4] = {"bytes","kB","MB","GB"};
+
 #define KILO 1000
 #define MEGA 1000000
 #define GIGA 1000000000
@@ -32,7 +37,7 @@ typedef struct commands
 {
 	const char *text;
 	void (*function)(WINDOW *);
-} COMMAND;
+} Commands;
 
 int wch_cmpn(const wchar_t * wch1, const wchar_t * wch2, int n){
 	int i;
@@ -57,133 +62,6 @@ void update_progress_bar(double t,double max_t){
 	refresh();
 }
 
-#define _USE_MATH_DEFINES
-#include <math.h>
-
-const double G = 6.67430e-11;
-
-typedef struct vector{
-	double x;
-	double y;
-	double z;
-} Vector;
-
-#define MAXNAMELEN 31
-typedef struct celestial{
-	char name[MAXNAMELEN];
-	Vector pos;
-	Vector vel;
-	Vector acc;
-	double mass;
-} Celestial;
-
-Vector makeVec(double x, double y, double z){
-	Vector result;
-	result.x=x;
-	result.y=y;
-	result.z=z;
-	return result;
-}
-
-Vector scalar_multi(double sca, Vector vec){	//sca*vec
-	Vector result = vec;
-	result.x *= sca;
-	result.y *= sca;
-	result.z *= sca;
-	return result;
-}
-
-Vector scalar_div(Vector vec, double sca){	//vec/sca
-	return scalar_multi(1/sca,vec);
-}
-
-Vector vec_add(Vector vec1, Vector vec2){	//vec1+vec2
-	Vector result = vec1;
-	result.x += vec2.x;
-	result.y += vec2.y;
-	result.z += vec2.z;
-	return result;
-}
-
-Vector vec_subtr(Vector vec1, Vector vec2){	//vec1-vec2
-	Vector result = vec1;
-	result.x -= vec2.x;
-	result.y -= vec2.y;
-	result.z -= vec2.z;
-	return result;
-}
-
-double vec_mag(Vector vec){	//|vec|
-	return sqrt( pow(vec.x,2) + pow(vec.y,2) + pow(vec.z,2) );
-}
-
-Vector unit_vec(Vector vec){	//unit vector of vec
-	return scalar_div(vec,vec_mag(vec));
-}
-
-Vector rel_pos(Vector pos1,Vector pos2){	//position of pos2 relative to pos1
-	return vec_subtr(pos2,pos1);
-}
-
-Vector acc_gravity(Celestial * c1, Celestial * c2){	//c1's acceleration by gravity of c2
-	Vector r = rel_pos(c1->pos,c2->pos);
-	return scalar_multi( (G*c2->mass)/pow(vec_mag(r),2), unit_vec(r) );
-}
-
-double kepler_law3_period(double m1, double m2, double a){
-	double mu = G*(m1+m2);
-	return 2*M_PI*pow(pow(a,3)/mu, 0.5);
-}
-
-double kepler_law3_semi_major_axis(double m1, double m2, double T){
-	double mu = G*(m1+m2);
-	return pow(mu*pow(T/(2*M_PI),2),(1/3));
-}
-
-double circular_orbit_speed(double m1, double m2, double r){
-	double mu = G*(m1+m2);
-	//printf("mu: %f\n",mu);
-	return pow(mu/r,0.5);
-}
-
-typedef struct celestial_list{
-	Celestial * celest_pointer;
-	int number;
-} Celestial_list;
-
-typedef struct simulation_settings{
-	char filename[60];
-	double max_t;
-	double delta_t;
-} Simulation_settings;
-
-typedef struct cr_binary_system{
-	Celestial primary;
-	Celestial secondary;
-	Vector L1;
-	Vector L2;
-	Vector L3;
-	Vector L4;
-	Vector L5;
-	double angular_speed;
-} cr_Binary_system;
-
-typedef struct cr_system{
-	cr_Binary_system binary_sys;
-	Celestial_list inf_body;
-} cr_System;
-
-const Celestial_list EXIT_CL = {NULL,0};
-const Simulation_settings EXIT_SS = {"",0,0};
-
-int is_exit_cl(Celestial_list cl){
-	return (cl.celest_pointer==EXIT_CL.celest_pointer) && (cl.number==EXIT_CL.number);
-}
-
-int is_exit_ss(Simulation_settings ss){
-	return (!strcmp(ss.filename,EXIT_SS.filename)) && (ss.max_t==EXIT_SS.max_t) && (ss.delta_t==EXIT_SS.delta_t);
-}
-	
 Celestial_list manual_n_body_set(){
 	int i,j,key;
 	int num_celest=0;
@@ -704,7 +582,7 @@ void n_body_sim(WINDOW *win){
 		fwrite((void*)(&(celest[i].mass)),sizeof(double),1,fp);
 
 	/*
-	if(sizeof(Vector) == (sizeof(double)*3))
+	if(sizeof(Vec3) == (sizeof(double)*3))
 		mvaddstr(10,10,"good");
 	else
 		mvaddstr(10,10,"not good");
@@ -714,7 +592,7 @@ void n_body_sim(WINDOW *win){
 	*/
 
 	for(i=0;i<num_celest;i++)
-		fwrite((void*)(&(celest[i].vel)),sizeof(Vector),1,fp);
+		fwrite((void*)(&(celest[i].vel)),sizeof(Vec3),1,fp);
 	
 	double half_delta_t = delta_t/2;
 	
@@ -735,7 +613,7 @@ void n_body_sim(WINDOW *win){
 				celest[i].acc = vec_add( celest[i].acc, acc_gravity(celest+i,celest+j) );	//calculate net accelerations
 			}
 
-			fwrite((void*)(&(celest[i].pos)),sizeof(Vector),1,fp);	//write positions
+			fwrite((void*)(&(celest[i].pos)),sizeof(Vec3),1,fp);	//write positions
 
 			celest[i].vel = vec_add( celest[i].vel, scalar_multi( half_delta_t, celest[i].acc ) );	//v=v0+a(dt/2)
 
@@ -767,7 +645,7 @@ void n_body_sim(WINDOW *win){
 	}
 	
 	for(i=0;i<num_celest;i++){
-		fwrite((void*)(&(celest[i].vel)),sizeof(Vector),1,fp);
+		fwrite((void*)(&(celest[i].vel)),sizeof(Vec3),1,fp);
 	}
 	fclose(fp);
 	free(celest);
@@ -872,7 +750,7 @@ void cr3bp_sim(WINDOW *win){
 
 #define MAX_OPTIONS (2)
 
-COMMAND command[MAX_OPTIONS] =
+Commands command[MAX_OPTIONS] =
 {
 	{"N-body", n_body_sim},
 	{"CR3BP", cr3bp_sim},

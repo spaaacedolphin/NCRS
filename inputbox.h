@@ -1,3 +1,6 @@
+#ifndef INPUTBOX_H
+#define INPUTBOX_H
+
 #define MAXINPUTLEN 51
 typedef struct inputbox{
 	char input_str[MAXINPUTLEN];
@@ -51,3 +54,5 @@ void draw_edit_input(InputBox * target);
 void h_connect_input(InputBox * left, InputBox * right);
 
 void v_connect_input(InputBox * above, InputBox * below);
+
+#endif/*INPUTBOX_H*/

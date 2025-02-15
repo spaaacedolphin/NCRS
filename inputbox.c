@@ -2,8 +2,7 @@
 #include <stdlib.h>
 #include <ctype.h>
 #include <string.h>
-#include <locale.h>
-#include <ncurses.h>
+#include <curses.h>
 #include "inputbox.h"
 
 InputBox make_input(char type,int y,int x,int width,char * init_str){
