@@ -62,44 +62,8 @@ void update_progress_bar(double t,double max_t){
 	refresh();
 }
 
-Celestial_list manual_n_body_set(){
-	int i,j,key;
-	int num_celest=0;
-	mvprintw(2,10,"[Number of Celestial bodies]");
-
-	InputBox num_celest_input = make_input('i',3,10,6,"");
-	InputBox * cur_input = &num_celest_input;
-		
-	bool repeat = 1;
-	while(repeat){
-		draw_cur_input(cur_input);
-				
-		noecho();
-		keypad(stdscr, TRUE);
-		raw();
-		key = getch();
-		switch(key)
-		{
-			case 10:
-			case 13:
-			case KEY_ENTER:
-				draw_edit_input_bg(cur_input);
-				edit_input(cur_input);
-				repeat=0;
-				break;
-			
-			case 'q':
-			case 'Q':
-			case 3:
-				return EXIT_CL;
-		}
-	}
-	num_celest = input_to_int(cur_input);
-	erase();
-	color_set(0,NULL);
-	//mvprintw(2,30,"num_celest: %d",num_celest);
-	//napms(2000);
-
+int default_units_set(){
+	int i,key;
 	//declare default unit inputs
 	InputBox mass_default_unit_inputs[5];
 	InputBox pos_default_unit_inputs[3];
@@ -107,7 +71,7 @@ Celestial_list manual_n_body_set(){
 
 	//define default unit inputs
 	mvprintw(2,10,"[Mass default unit options]");
-
+	
 	for(i=0;i<5;i++)
 		mass_default_unit_inputs[i]=make_radio_input(0,i,3,10+20*i,18,mass_unit_options[i]);
 	
@@ -143,9 +107,9 @@ Celestial_list manual_n_body_set(){
 	//start default unit selection page
 	for(i=0;i<3;i++)
 		selected_default_units[i] = -1; 
-	cur_input = &mass_default_unit_inputs[0];
+	InputBox * cur_input = &mass_default_unit_inputs[0];
 		
-	repeat=1;
+	bool repeat=1;
 	while(repeat)
 	{
 		for(i=0;i<5;i++)
@@ -208,7 +172,7 @@ Celestial_list manual_n_body_set(){
 			case 'q':
 			case 'Q':
 			case 3:
-				return EXIT_CL;
+				return 1;
 				
 			default:
 				break;
@@ -220,7 +184,49 @@ Celestial_list manual_n_body_set(){
 	//mvprintw(3,30,"%d // %d / %d / %d",num_celest,selected_default_units[0],selected_default_units[1],selected_default_units[2]);
 	//refresh();
 	//napms(5000);
+	return 0;
+}
 
+Celestial_list manual_n_body_set(){
+	int i,j,key;
+	int num_celest=0;
+	mvprintw(2,10,"[Number of Celestial bodies]");
+
+	InputBox num_celest_input = make_input('i',3,10,6,"");
+	InputBox * cur_input = &num_celest_input;
+		
+	bool repeat = 1;
+	while(repeat){
+		draw_cur_input(cur_input);
+				
+		noecho();
+		keypad(stdscr, TRUE);
+		raw();
+		key = getch();
+		switch(key)
+		{
+			case 10:
+			case 13:
+			case KEY_ENTER:
+				draw_edit_input_bg(cur_input);
+				edit_input(cur_input);
+				repeat=0;
+				break;
+			
+			case 'q':
+			case 'Q':
+			case 3:
+				return EXIT_CL;
+		}
+	}
+	num_celest = input_to_int(cur_input);
+	erase();
+	color_set(0,NULL);
+	//mvprintw(2,30,"num_celest: %d",num_celest);
+	//napms(2000);
+
+	if(default_units_set())
+		return EXIT_CL;
 
 	//declare inputs
 	InputBox * name_inputs = (InputBox *)malloc(sizeof(InputBox)*num_celest);    //InputBox name_inputs[num_celest];

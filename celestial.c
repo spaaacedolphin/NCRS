@@ -25,22 +25,26 @@ Vec3 scalar_multi(double sca, Vec3 vec){	//sca*vec
 }
 
 Vec3 scalar_div(Vec3 vec, double sca){	//vec/sca
-	return scalar_multi(1/sca,vec);
-}
-
-Vec3 vec_add(Vec3 vec_1, Vec3 vec_2){	//vec_1 + vec_2
-	Vec3 result = vec_1;
-	result.x += vec_2.x;
-	result.y += vec_2.y;
-	result.z += vec_2.z;
+	Vec3 result = vec;
+	result.x /= sca;
+	result.y /= sca;
+	result.z /= sca;
 	return result;
 }
 
-Vec3 vec_subtr(Vec3 vec_1, Vec3 vec_2){	//vec_1 - vec_2
-	Vec3 result = vec_1;
-	result.x -= vec_2.x;
-	result.y -= vec_2.y;
-	result.z -= vec_2.z;
+Vec3 vec_add(Vec3 v1, Vec3 v2){	//v1 + v2
+	Vec3 result = v1;
+	result.x += v2.x;
+	result.y += v2.y;
+	result.z += v2.z;
+	return result;
+}
+
+Vec3 vec_subtr(Vec3 v1, Vec3 v2){	//v1 - v2
+	Vec3 result = v1;
+	result.x -= v2.x;
+	result.y -= v2.y;
+	result.z -= v2.z;
 	return result;
 }
 

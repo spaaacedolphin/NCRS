@@ -49,9 +49,9 @@ Vec3 scalar_multi(double sca, Vec3 vec);	//sca*vec
 
 Vec3 scalar_div(Vec3 vec, double sca);	//vec/sca
 
-Vec3 vec_add(Vec3 vec_1, Vec3 vec_2);	//vec_1 + vec_2
+Vec3 vec_add(Vec3 v1, Vec3 v2);	//v1 + v2
 
-Vec3 vec_subtr(Vec3 vec_1, Vec3 vec_2);	//vec_1 - vec_2
+Vec3 vec_subtr(Vec3 v1, Vec3 v2);	//v1 - v2
 
 double vec_mag(Vec3 vec);	//|vec|
 
