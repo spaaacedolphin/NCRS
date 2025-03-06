@@ -53,6 +53,8 @@ Vec3 vec_add(Vec3 v1, Vec3 v2);	//v1 + v2
 
 Vec3 vec_subtr(Vec3 v1, Vec3 v2);	//v1 - v2
 
+double vec_mag_squared(Vec3 vec);	//|vec|^2
+
 double vec_mag(Vec3 vec);	//|vec|
 
 Vec3 unit_vec(Vec3 vec);	//unit vector of vec

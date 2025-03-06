@@ -48,8 +48,12 @@ Vec3 vec_subtr(Vec3 v1, Vec3 v2){	//v1 - v2
 	return result;
 }
 
+double vec_mag_squared(Vec3 vec){	//|vec|^2
+	return (vec.x * vec.x) + (vec.y * vec.y) + (vec.z * vec.z);
+}
+
 double vec_mag(Vec3 vec){	//|vec|
-	return sqrt( pow(vec.x,2) + pow(vec.y,2) + pow(vec.z,2) );
+	return sqrt(vec_mag_squared(vec));
 }
 
 Vec3 unit_vec(Vec3 vec){	//unit vector of vec
@@ -58,7 +62,7 @@ Vec3 unit_vec(Vec3 vec){	//unit vector of vec
 
 Vec3 acc_gravity(Celestial * c1, Celestial * c2){	//c1's acceleration by gravity of c2
 	Vec3 r = vec_subtr(c2->pos,c1->pos);
-	return scalar_multi( (G*c2->mass)/pow(vec_mag(r),2), unit_vec(r) );
+	return scalar_multi( (G*c2->mass)/vec_mag_squared(r), unit_vec(r) );
 }
 
 double kepler_law3_period(double m1, double m2, double a){
