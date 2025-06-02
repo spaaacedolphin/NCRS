@@ -36,7 +36,7 @@ const char * file_size_units[4] = {"bytes","kB","MB","GB"};
 typedef struct commands
 {
 	const char *text;
-	void (*function)(WINDOW *);
+	void (*function)();
 } Commands;
 
 int wch_cmpn(const wchar_t * wch1, const wchar_t * wch2, int n){
@@ -554,14 +554,14 @@ Simulation_settings simulation_set(int num_celest){
 	return sim_settings;
 }
 
-void n_body_sim(WINDOW *win){
+void n_body_sim(){
 	int i,j,k,key;
 		
 	Celestial_list celest_list =  manual_n_body_set();
 	if(is_exit_cl(celest_list))
 		return;
 		
-	Celestial * celest = celest_list.celest_pointer;
+	Celestial * celest = celest_list.celest_ptr;
 	int num_celest = celest_list.number;
 	
 	Simulation_settings sim_settings = simulation_set(num_celest);
@@ -586,16 +586,6 @@ void n_body_sim(WINDOW *win){
 
 	for(i=0;i<num_celest;i++)
 		fwrite((void*)(&(celest[i].mass)),sizeof(double),1,fp);
-
-	/*
-	if(sizeof(Vec3) == (sizeof(double)*3))
-		mvaddstr(10,10,"good");
-	else
-		mvaddstr(10,10,"not good");
-	refresh();
-	napms(3000);
-	erase();
-	*/
 
 	for(i=0;i<num_celest;i++)
 		fwrite((void*)(&(celest[i].vel)),sizeof(Vec3),1,fp);
@@ -691,7 +681,7 @@ cr_System JPL_cr3bp_set(){
 }
 */
 
-void cr3bp_sim(WINDOW *win){
+void cr3bp_sim(){
 	int i,j,k,key;
 	int num_celest=0;
 	
@@ -909,7 +899,7 @@ int main(int argc, char *argv[])
 				old_option = -1;
 				erase();
 				refresh();
-				(*command[new_option].function)(stdscr);
+				command[new_option].function();
 				erase();
 				display_menu(old_option, new_option);
 				break;

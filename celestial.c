@@ -82,7 +82,7 @@ double circular_orbit_speed(double m1, double m2, double r){
 }
 
 int is_exit_cl(Celestial_list cl){
-	return (cl.celest_pointer==EXIT_CL.celest_pointer) && (cl.number==EXIT_CL.number);
+	return (cl.celest_ptr==EXIT_CL.celest_ptr) && (cl.number==EXIT_CL.number);
 }
 
 int is_exit_ss(Simulation_settings ss){

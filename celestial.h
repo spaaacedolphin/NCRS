@@ -17,7 +17,7 @@ typedef struct celestial{
 } Celestial;
 
 typedef struct celestial_list{
-	Celestial * celest_pointer;
+	Celestial * celest_ptr;
 	int number;
 } Celestial_list;
 
