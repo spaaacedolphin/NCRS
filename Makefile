@@ -1,6 +1,6 @@
 CC = gcc
 CFLAGS = -Wall -O3
-LIBS = $$(ncursesw5-config --cflags --libs) -lm
+LIBS = -lm -lncursesw
 objects = main.o inputbox.o celestial.o
 
 all: ncrs

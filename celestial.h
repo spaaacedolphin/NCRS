@@ -67,8 +67,4 @@ double kepler_law3_semi_major_axis(double m1, double m2, double T);
 
 double circular_orbit_speed(double m1, double m2, double r);
 
-int is_exit_cl(Celestial_list cl);
-
-int is_exit_ss(Simulation_settings ss);
-
 #endif/*CELESTIAL_H*/

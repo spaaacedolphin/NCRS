@@ -5,9 +5,6 @@
 
 const double G = 6.67430e-11;
 
-const Celestial_list EXIT_CL = {NULL,0};
-const Simulation_settings EXIT_SS = {"",0,0};
-
 Vec3 makeVec(double x, double y, double z){
 	Vec3 result;
 	result.x=x;
@@ -81,10 +78,3 @@ double circular_orbit_speed(double m1, double m2, double r){
 	return pow(mu/r,0.5);
 }
 
-int is_exit_cl(Celestial_list cl){
-	return (cl.celest_ptr==EXIT_CL.celest_ptr) && (cl.number==EXIT_CL.number);
-}
-
-int is_exit_ss(Simulation_settings ss){
-	return (!strcmp(ss.filename,EXIT_SS.filename)) && (ss.max_t==EXIT_SS.max_t) && (ss.delta_t==EXIT_SS.delta_t);
-}

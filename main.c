@@ -14,9 +14,6 @@ extern char * pos_unit_options[3];
 extern char * vel_unit_options[2];
 extern signed char selected_default_units[3];
 
-extern const Celestial_list EXIT_CL;
-extern const Simulation_settings EXIT_SS;
-
 #define UNICODE_BBLOCK  L"\u2584"
 #define UNICODE_UBLOCK  L"\u2580"
 #define UNICODE_FBLOCK  L"\u2588"
@@ -48,8 +45,8 @@ int wch_cmpn(const wchar_t * wch1, const wchar_t * wch2, int n){
 	return 1;
 }
 
-void update_progress_bar(double t,double max_t){
-	int progress = (int)((t/max_t)*100);
+void update_progress_bar(double ratio){
+	int progress = (int)(ratio*100);
 	mvprintw(10,10,"%d%%",progress);
 	int i;
 	cchar_t ch;
@@ -187,7 +184,7 @@ int default_units_set(){
 	return 0;
 }
 
-Celestial_list manual_n_body_set(){
+int manual_n_body_set(Celestial ** celest_p, int * num_celest_p){
 	int i,j,key;
 	int num_celest=0;
 	mvprintw(2,10,"[Number of Celestial bodies]");
@@ -216,17 +213,18 @@ Celestial_list manual_n_body_set(){
 			case 'q':
 			case 'Q':
 			case 3:
-				return EXIT_CL;
+				return 1;
 		}
 	}
 	num_celest = input_to_int(cur_input);
+	*num_celest_p = num_celest;
 	erase();
 	color_set(0,NULL);
 	//mvprintw(2,30,"num_celest: %d",num_celest);
 	//napms(2000);
 
 	if(default_units_set())
-		return EXIT_CL;
+		return 1;
 
 	//declare inputs
 	InputBox * name_inputs = (InputBox *)malloc(sizeof(InputBox)*num_celest);    //InputBox name_inputs[num_celest];
@@ -364,7 +362,7 @@ Celestial_list manual_n_body_set(){
 			case 'q':
 			case 'Q':
 			case 3:
-				return EXIT_CL;
+				return 1;
 				
 			default:
 				break;
@@ -399,12 +397,13 @@ Celestial_list manual_n_body_set(){
 	free(init_vel_inputs);
 
 	erase();
-
-	Celestial_list celest_list = {celest,num_celest};
-	return celest_list;
+	
+	*celest_p = celest;
+	
+	return 0;
 }
 
-Simulation_settings simulation_set(int num_celest){
+int simulation_set(Simulation_settings * sim_settings_p, int num_celest){
 	int i,key;
 	color_set(0,NULL);
 	mvaddstr(2,10,"[max_t]");
@@ -414,8 +413,6 @@ Simulation_settings simulation_set(int num_celest){
 	max_t_inputs[2] = make_input('d',5,10,3,"");
 	max_t_inputs[3] = make_input('d',5,20,3,"");
 	max_t_inputs[4] = make_input('d',5,32,3,"");
-	
-	
 	
 	mvaddstr(7,10,"[delta_t]");
 	InputBox delta_t_input=make_input('d',8,10,15,"");
@@ -532,7 +529,7 @@ Simulation_settings simulation_set(int num_celest){
 			case 'q':
 			case 'Q':
 			case 3:
-				return EXIT_SS;
+				return 1;
 				
 			default:
 				break;
@@ -547,25 +544,25 @@ Simulation_settings simulation_set(int num_celest){
 		max_t += input_to_double(max_t_inputs+i,time_unit_types[i]);
 
 	delta_t = input_to_double(&delta_t_input,'s');
-	
-	Simulation_settings sim_settings={"",max_t,delta_t}; 
-	strcpy(sim_settings.filename,file_name_input.input_str);
-	strcat(sim_settings.filename,".ncrs");
-	return sim_settings;
+	 
+	strcpy(sim_settings_p->filename,file_name_input.input_str);
+	strcat(sim_settings_p->filename,".ncrs");
+	sim_settings_p->max_t = max_t;
+	sim_settings_p->delta_t = delta_t;
+	return 0;
 }
 
 void n_body_sim(){
 	int i,j,k,key;
-		
-	Celestial_list celest_list =  manual_n_body_set();
-	if(is_exit_cl(celest_list))
-		return;
-		
-	Celestial * celest = celest_list.celest_ptr;
-	int num_celest = celest_list.number;
 	
-	Simulation_settings sim_settings = simulation_set(num_celest);
-	if(is_exit_ss(sim_settings))
+	Celestial * celest;
+	int num_celest;
+	
+	if(manual_n_body_set(&celest,&num_celest))
+		return;
+	
+	Simulation_settings sim_settings;
+	if(simulation_set(&sim_settings,num_celest))
 		return;
 	
 	double t = 0;
@@ -592,32 +589,33 @@ void n_body_sim(){
 	
 	double half_delta_t = delta_t/2;
 	
+	//---"Initial Acceleration"---//
+	for(i=0; i<num_celest; i++){
+		
+		celest[i].acc.x=0;
+		celest[i].acc.y=0;
+		celest[i].acc.z=0;
+	    
+	    for(j=0;j<num_celest;j++){
+	    		if(j==i)
+	    			continue;
+			celest[i].acc = vec_add( celest[i].acc, acc_gravity(celest+i,celest+j) );	//calculate net accelerations
+		}
+	}
+	
 	for(t=0; t<=max_t; t+=delta_t){
 		
-		update_progress_bar(t,max_t);
+		update_progress_bar(t/max_t);
 			 
 		//---"Kick"---//
 		for(i=0; i<num_celest; i++){
-			
-			celest[i].acc.x=0;
-			celest[i].acc.y=0;
-			celest[i].acc.z=0;
-
-			for(j=0;j<num_celest;j++){
-				if(j==i)
-					continue;
-				celest[i].acc = vec_add( celest[i].acc, acc_gravity(celest+i,celest+j) );	//calculate net accelerations
-			}
-
-			fwrite((void*)(&(celest[i].pos)),sizeof(Vec3),1,fp);	//write positions
-
+			fwrite((void*)(&(celest[i].pos)),sizeof(Vec3),1,fp);		//write positions
 			celest[i].vel = vec_add( celest[i].vel, scalar_multi( half_delta_t, celest[i].acc ) );	//v=v0+a(dt/2)
-
 		}
 		
 		//---"Drift"---//
 		for(k=0; k<num_celest; k++)
-			celest[k].pos = vec_add( celest[k].pos, scalar_multi( delta_t, celest[k].vel ) );	//x=x0+vdt		
+			celest[k].pos = vec_add( celest[k].pos, scalar_multi( delta_t, celest[k].vel ) );	//x=x0+vdt
 
 		//---"Kick"---//
 		for(i=0; i<num_celest; i++){
@@ -640,9 +638,12 @@ void n_body_sim(){
 
 	}
 	
-	for(i=0;i<num_celest;i++){
-		fwrite((void*)(&(celest[i].vel)),sizeof(Vec3),1,fp);
-	}
+	for(i=0; i<num_celest; i++)
+		fwrite((void*)(&(celest[i].pos)),sizeof(Vec3),1,fp);		//write final positions
+	
+	for(i=0;i<num_celest;i++)
+		fwrite((void*)(&(celest[i].vel)),sizeof(Vec3),1,fp);		//write final velocities
+	
 	fclose(fp);
 	free(celest);
 	mvaddstr(12,10,"Complete!");
@@ -752,7 +753,7 @@ Commands command[MAX_OPTIONS] =
 	{"CR3BP", cr3bp_sim},
 };
 
-void loading_screen(FILE *f)
+void intro_screen(FILE *f)
 {
 	if(f==NULL)
 		return;
@@ -866,7 +867,7 @@ int main(int argc, char *argv[])
 	nodelay(stdscr,TRUE);
 	while(1)
 	{
-		loading_screen(file);
+		intro_screen(file);
 		i++;
 		if(i>=352){
 			napms(3000);
@@ -876,6 +877,10 @@ int main(int argc, char *argv[])
 		key=getch();
 		if(key==10 || key==13 || key==KEY_ENTER)
 			break;
+		if(key=='q' || key=='Q' || key==3){
+			endwin();
+			return 0;
+		}
 		napms(30);
 	}
 	erase();
